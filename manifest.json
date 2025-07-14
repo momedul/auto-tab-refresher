@@ -1,12 +1,18 @@
 {
     "manifest_version": 3,
-    "name": "Cross-Browser Auto Tab Refresher",
-    "version": "1.0",
-    "description": "Automatically refreshes your active tab at a set interval. Code by MAMEDUL ISLAM(known as Momedul Islam)",
+    "name": "Auto Tab Refresher (Advanced)",
+    "version": "1.6",
+    "description": "Automatically refreshes your active or all tabs with advanced options by MAMEDUL ISLAM(MOMEDUL ISLAM)",
     "permissions": [
         "activeTab",
         "alarms",
-        "storage"
+        "storage",
+        "tabs",
+        "notifications",
+        "scripting"
+    ],
+    "host_permissions": [
+        "<all_urls>"
     ],
     "background": {
         "service_worker": "./background.js"
@@ -15,12 +21,14 @@
         "default_popup": "./popup.html",
         "default_icon": {
             "16": "icons/icon16.png",
+            "32": "icons/icon32.png",
             "48": "icons/icon48.png",
             "128": "icons/icon128.png"
         }
     },
     "icons": {
         "16": "icons/icon16.png",
+        "32": "icons/icon32.png",
         "48": "icons/icon48.png",
         "128": "icons/icon128.png"
     }

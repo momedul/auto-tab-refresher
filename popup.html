@@ -5,96 +5,401 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Auto Tab Refresher</title>
-    <!--<script src="https://cdn.tailwindcss.com"></script>-->
+    <!-- Local Tailwind CSS script as requested -->
     <script src="./tailwind-browser@4.js"></script>
     <style>
+        html{
+            width: 320px; /* Max width as requested */
+            scroll-behavior: smooth;
+        }
         body {
-            width: 300px;
             font-family: 'Inter', sans-serif;
-            padding: 1rem;
-            background-color: #f3f4f6; /* Light gray background */
+            font-size: 0.86rem;
+            line-height: 1.1;
+            background-color: #f3f4f6;
+            overflow-y: auto; /* Enable scrolling if content exceeds max-height */
         }
         .container {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
+            width: 100%;
+            padding: 0 0.86rem 0 0.86rem; /* Scaled down padding */
+            margin: 0.86rem 0 0.86rem 0; /* Scaled down padding */
         }
         .input-group {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.43rem; /* Scaled down gap */
         }
-        input[type="number"] {
-            padding: 0.75rem;
-            border-radius: 0.5rem;
-            border: 1px solid #d1d5db; /* Light gray border */
+        input[type="number"], input[type="text"], input[type="time"], textarea {
+            padding: 0.65rem; /* Scaled down padding */
+            border-radius: 0.43rem; /* Scaled down border-radius */
+            border: 1px solid #d1d5db;
             outline: none;
             transition: border-color 0.2s;
+            font-size: 0.86rem; /* Scaled down font size */
         }
-        input[type="number"]:focus {
-            border-color: #3b82f6; /* Blue focus border */
+        input[type="number"]:focus, input[type="text"]:focus, input[type="time"]:focus, textarea:focus {
+            border-color: #3b82f6;
         }
         button {
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
+            padding: 0.65rem 0.86rem; /* Scaled down padding */
+            border-radius: 0.43rem; /* Scaled down border-radius */
             font-weight: 600;
             cursor: pointer;
             transition: background-color 0.2s, transform 0.1s;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.08), 0 1px 2px -1px rgba(0, 0, 0, 0.04); /* More subtle shadow */
+            font-size: 0.86rem; /* Scaled down font size */
         }
         button:active {
             transform: translateY(1px);
         }
         .btn-primary {
-            background-color: #3b82f6; /* Blue */
+            background-color: #3b82f6;
             color: white;
         }
         .btn-primary:hover {
-            background-color: #2563eb; /* Darker blue */
+            background-color: #2563eb;
         }
         .btn-secondary {
-            background-color: #ef4444; /* Red */
+            background-color: #ef4444;
             color: white;
         }
         .btn-secondary:hover {
-            background-color: #dc2626; /* Darker red */
+            background-color: #dc2626;
         }
         .status-message {
-            margin-top: 1rem;
-            padding: 0.75rem;
-            border-radius: 0.5rem;
+            margin-top: 0.86rem; /* Scaled down margin */
+            padding: 0.65rem; /* Scaled down padding */
+            border-radius: 0.43rem; /* Scaled down border-radius */
             font-weight: 500;
             text-align: center;
+            font-size: 0.86rem; /* Scaled down font size */
         }
         .status-success {
-            background-color: #d1fae5; /* Light green */
-            color: #065f46; /* Dark green text */
+            background-color: #d1fae5;
+            color: #065f46;
         }
         .status-error {
-            background-color: #fee2e2; /* Light red */
-            color: #991b1b; /* Dark red text */
+            background-color: #fee2e2;
+            color: #991b1b;
         }
         .status-info {
-            background-color: #e0f2fe; /* Light blue */
-            color: #1e40af; /* Dark blue text */
+            background-color: #e0f2fe;
+            color: #1e40af;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.43rem; /* Scaled down gap */
+        }
+        .checkbox-group label {
+            font-size: 0.86rem; /* Scaled down font size */
+            color: #374151; /* Darker gray for better contrast */
+        }
+        .option-section {
+            position: relative;
+        }
+        .option-section h2 {
+            font-size: 1.0rem; /* Adjusted font size for section heading */
+            margin-bottom: 0.6rem; /* Scaled down margin */
+        }
+        .countdown-display {
+            font-size: 1.08rem; /* Scaled down font size */
+            font-weight: bold;
+            color: #1d4ed8;
+            text-align: center;
+            margin-top: 0.86rem; /* Scaled down margin */
+            animation: blink 1s step-start infinite;
+        }
+        /* Added .hidden style as requested */
+        .hidden {
+            display: none !important;
+        }
+        .tab-list {
+            max-height: 256px; /* Adjusted max-height for smaller popup */
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.43rem; /* Scaled down border-radius */
+            padding: 0.43rem; /* Scaled down padding */
+            background-color: #ffffff;
+        }
+        .tab-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.43rem; /* Scaled down padding */
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .tab-item:last-child {
+            border-bottom: none;
+        }
+        .tab-info {
+            flex-grow: 1;
+            margin-right: 0.43rem; /* Scaled down margin */
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .tab-title {
+            font-weight: 500;
+            color: #374151;
+            font-size: 0.8rem; /* Scaled down font size */
+        }
+        .tab-url {
+            font-size: 0.7rem; /* Scaled down font size */
+            color: #6b7280;
+        }
+        .tab-actions button {
+            padding: 0.2rem 0.5rem; /* Scaled down padding */
+            font-size: 0.7rem; /* Scaled down font size */
+            margin-left: 0.43rem; /* Scaled down margin */
+        }
+        .tab-id-display {
+            opacity: 0.4;
+            cursor: default;
+            font-size: 0.8rem; /* Scaled down font size */
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 0.43rem; /* Scaled down margin */
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            line-clamp: 1;
+            overflow: hidden;
+        }
+
+        .tab-id-display:hover{
+            opacity: 1;
+        }
+
+        #interval,
+        #minInterval,
+        #maxInterval,
+        #refreshTime,
+        #hostnameFilter,
+        #cssSelector,
+        #urlList{
+            background-color: #ffffff;
+        }
+        
+        #interval:disabled,
+        #minInterval:disabled,
+        #maxInterval:disabled,
+        #refreshTime:disabled,
+        #urlList:disabled,
+        #hostnameFilter:disabled,
+        #urlList:disabled,
+        #cssSelector:disabled{
+            background-color: #f4f7f9;
+            opacity: 0.6;
+        }
+
+        #startRefresh:disabled,
+        #stopRefresh:disabled{
+            opacity: 0.4;
+        }
+
+        input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 2rem;
+            height: 1rem;
+            background-color: #ccc;
+            border-radius: 1rem;
+            position: relative;
+            cursor: pointer;
+            outline: none;
+            transition: background-color 0.3s ease;
+        }
+
+        input[type="checkbox"]::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 1rem;
+            background-color: transparent;
+        }
+
+        input[type="checkbox"]::after {
+            content: "";
+            position: absolute;
+            top: 0.1rem;
+            left: 0.1rem;
+            width: 0.8rem;
+            height: 0.8rem;
+            background-color: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 0 2px rgba(0,0,0,0.2);
+        }
+
+        /* Checked state */
+        input[type="checkbox"]:checked {
+            background-color: #4caf50;
+        }
+
+        input[type="checkbox"]:checked::after {
+            transform: translateX(1rem);
+        }
+
+        .tab-content{
+            min-height: 256px;
+            max-height: 320px; /* Max height as requested */
+            overflow-y: auto;
+        }
+
+        #advancedFiltersToggle {
+            cursor: default;
+        }
+
+        #advancedFiltersWrapper #advancedFiltersToggle::before {
+            content: "\25B8";
+            margin-right: 0.5rem;
+            scale: 1.5;
+        }
+
+        #advancedFiltersWrapper.expand #advancedFiltersToggle .toggle-down::before {
+            content: "\25BE";
+        }
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
         }
     </style>
 </head>
-<body class="bg-gray-100 p-4 rounded-lg shadow-lg">
-    <div class="container">
-        <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Auto Tab Refresher</h1>
-
-        <div class="input-group">
-            <label for="interval" class="text-gray-700 font-medium">Refresh every (seconds):</label>
-            <input type="number" id="interval" min="5" value="60" class="w-full">
+<body class="bg-gray-100 p-0 rounded-lg shadow-lg">
+    <div class="w-full max-w-md mx-auto">
+        <div class="flex border-b border-gray-300">
+            <input type="radio" name="tabs" id="mainTab" class="tab-item sr-only peer/mainTab" checked>
+            <label for="mainTab"
+                class="tab-btn peer-checked/mainTab:border-blue-500 peer-checked/mainTab:text-blue-600 my-1 mx-2">
+                &#127968; Main
+            </label>
+            <input type="radio" name="tabs" id="activesTab" class="tab-item sr-only peer/activesTab">
+            <label for="activesTab"
+                class="tab-btn peer-checked/activesTab:border-blue-500 peer-checked/activesTab:text-blue-600 my-1 mx-2">
+                &#128203; Actives (<span id="activesTabCount">0</span>)
+            </label>
+            <input type="radio" name="tabs" id="toolsTab" class="tab-item sr-only peer/toolsTab">
+            <label for="toolsTab"
+                class="tab-btn peer-checked/toolsTab:border-blue-500 peer-checked/toolsTab:text-blue-600 my-1 mx-2">
+                &#128736; Tools
+            </label>
         </div>
+        <div class="p-0 m-0">
+            <div data-wrapper="mainTab" class="tab-content peer-checked/mainTab:block">
+                <div class="container">
+                    <h1 class="text-xl font-bold text-gray-800 mt-0 mb-1 text-center">Auto Tab Refresher</h1>
+                    <div class="tab-id-display"><span id="currentTabUrlCopy">&#128196;</span>&nbsp;<span id="currentTabUrlDisplay"></span></div>
+                    <div id="statusMessage" class="status-message hidden"></div>
 
-        <div class="flex gap-2">
-            <button id="startRefresh" class="flex-1 btn-primary">Start Refresh</button>
-            <button id="stopRefresh" class="flex-1 btn-secondary">Stop Refresh</button>
+                    <div class="flex gap-2 my-3">
+                        <button id="startRefresh" class="flex-1 btn-primary">&#9654; Start</button>
+                        <button id="stopRefresh" class="flex-1 btn-secondary">&#9209; Stop</button>
+                    </div>
+
+                    <div class="input-group mb-2">
+                        <label for="interval" class="text-gray-700 font-medium">Refresh every (seconds):</label>
+                        <input type="number" id="interval" min="5" value="60" class="w-full">
+                    </div>
+
+                    <div class="checkbox-group mb-2">
+                        <input type="checkbox" id="randomIntervalToggle" class="rounded text-blue-600 focus:ring-blue-500">
+                        <label for="randomIntervalToggle" class="text-gray-700 font-medium">Random interval</label>
+                    </div>
+                    <div id="randomIntervalFields" class="hidden input-group pl-6 mb-2">
+                        <label for="minInterval" class="text-gray-700 font-medium">Min seconds:</label>
+                        <input type="number" id="minInterval" min="5" value="30" class="w-full">
+                        <label for="maxInterval" class="text-gray-700 font-medium">Max seconds:</label>
+                        <input type="number" id="maxInterval" min="6" value="90" class="w-full">
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="specificTimeToggle" class="rounded text-blue-600 focus:ring-blue-500">
+                        <label for="specificTimeToggle" class="text-gray-700 font-medium">Refresh at specific time (one-time)</label>
+                    </div>
+
+                    <div id="specificTimeField" class="hidden input-group pl-6">
+                        <label for="refreshTime" class="text-gray-700 font-medium">Time (HH:MM):</label>
+                        <input type="time" id="refreshTime" class="w-full">
+                    </div>
+
+                    <div id="advancedFiltersWrapper" class="option-section mt-1">
+                        <h2 id="advancedFiltersToggle" class="text-lg font-semibold text-gray-800 mb-2">Advanced Options</h2>
+                        <div id="advancedFilters" class="pl-3 mb-2 hidden">
+                            <div class="checkbox-group mb-2">
+                                <input type="checkbox" id="hostnameFilterToggle" class="rounded text-blue-600 focus:ring-blue-500">
+                                <label for="hostnameFilterToggle" class="text-gray-700 font-medium">Only refresh on hostname</label>
+                            </div>
+                            <div id="hostnameFilterFields" class="hidden input-group pl-6 mb-2">
+                                <label for="hostnameFilter" class="text-gray-700 font-medium ml-1">(eg.: example.com)</label>
+                                <input class="w-full ml-1" type="text" id="hostnameFilter" placeholder="Leave empty for any hostname">
+                            </div>
+
+                            <div class="checkbox-group mb-2">
+                                <input type="checkbox" id="clearCache" class="rounded text-blue-600 focus:ring-blue-500">
+                                <label for="clearCache" class="text-gray-700 font-medium">Clear cache on refresh</label>
+                            </div>
+
+                            <div class="checkbox-group mb-2">
+                                <input type="checkbox" id="showNotification" class="rounded text-blue-600 focus:ring-blue-500">
+                                <label for="showNotification" class="text-gray-700 font-medium">Show notification on refresh</label>
+                            </div>
+
+                            <div class="checkbox-group mb-2">
+                                <input type="checkbox" id="refreshAllTabs" class="rounded text-blue-600 focus:ring-blue-500">
+                                <label for="refreshAllTabs" class="text-gray-700 font-medium">Refresh all currently open tabs</label>
+                            </div>
+
+                            <div class="checkbox-group mb-2">
+                                <input type="checkbox" id="refreshByUrlListToggle" class="rounded text-blue-600 focus:ring-blue-500">
+                                <label for="refreshByUrlListToggle" class="text-gray-700 font-medium">Refresh to URL from a list</label>
+                            </div>
+                            <div id="urlListFields" class="hidden input-group pl-6 mb-2">
+                                <label for="urlList" class="text-gray-700 font-medium ml-1">URLs (one per line):</label>
+                                <textarea class="w-full ml-1" id="urlList" rows="4" placeholder="https://example.com/page1&#10;https://example.com/page2"></textarea>
+                            </div>
+
+                            <div class="checkbox-group mb-2">
+                                <input type="checkbox" id="clickElementToggle" class="rounded text-blue-600 focus:ring-blue-500">
+                                <label for="clickElementToggle" class="text-gray-700 font-medium">Click element before refresh</label>
+                            </div>
+                            <div id="clickElementFields" class="hidden input-group pl-6 mb-2">
+                                <label for="cssSelector" class="text-gray-700 font-medium ml-1">CSS Selector (e.g., #myButton, .myClass):</label>
+                                <input class="w-full ml-1" type="text" id="cssSelector" placeholder="e.g., #refreshBtn">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="countdownDisplay" class="countdown-display hidden"></div>
+                </div>
+            </div>
+            <div data-wrapper="activesTab" class="tab-content peer-checked/activesTab:block hidden">
+                <div class="container">
+                    <div class="option-section mb-2">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-1">Active Jobs</h2>
+                        <div id="activeTabsList" class="tab-list">
+                            <!-- Active tabs will be listed here -->
+                            <p class="text-gray-500 text-center py-2">No active refreshes.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div data-wrapper="toolsTab" class="tab-content peer-checked/toolsTab:block hidden">
+                <div class="container">
+                    <div class="option-section mb-2">
+                        <h2 class="text-lg font-semibold text-gray-800 mb-1">Tools</h2>
+                        <h2 class="text-lg font-semibold text-gray mb-1">Coming soon.....</h2>
+
+                        <div class="text-center text-xs text-gray-500 mt-4 border-t pt-2">
+                            Design, develop &amp; maintenance by
+                            <a href="https://mamedul2.github.io/" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">
+                                MAMEDUL ISLAM
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <div id="statusMessage" class="status-message hidden"></div>
     </div>
 
     <script src="./popup.js"></script>
