@@ -1,0 +1,102 @@
+<!-- popup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Tab Refresher</title>
+    <!--<script src="https://cdn.tailwindcss.com"></script>-->
+    <script src="./tailwind-browser@4.js"></script>
+    <style>
+        body {
+            width: 300px;
+            font-family: 'Inter', sans-serif;
+            padding: 1rem;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        input[type="number"] {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db; /* Light gray border */
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="number"]:focus {
+            border-color: #3b82f6; /* Blue focus border */
+        }
+        button {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* Blue */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Darker blue */
+        }
+        .btn-secondary {
+            background-color: #ef4444; /* Red */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #dc2626; /* Darker red */
+        }
+        .status-message {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        .status-success {
+            background-color: #d1fae5; /* Light green */
+            color: #065f46; /* Dark green text */
+        }
+        .status-error {
+            background-color: #fee2e2; /* Light red */
+            color: #991b1b; /* Dark red text */
+        }
+        .status-info {
+            background-color: #e0f2fe; /* Light blue */
+            color: #1e40af; /* Dark blue text */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 rounded-lg shadow-lg">
+    <div class="container">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4 text-center">Auto Tab Refresher</h1>
+
+        <div class="input-group">
+            <label for="interval" class="text-gray-700 font-medium">Refresh every (seconds):</label>
+            <input type="number" id="interval" min="5" value="60" class="w-full">
+        </div>
+
+        <div class="flex gap-2">
+            <button id="startRefresh" class="flex-1 btn-primary">Start Refresh</button>
+            <button id="stopRefresh" class="flex-1 btn-secondary">Stop Refresh</button>
+        </div>
+
+        <div id="statusMessage" class="status-message hidden"></div>
+    </div>
+
+    <script src="./popup.js"></script>
+</body>
+</html>
