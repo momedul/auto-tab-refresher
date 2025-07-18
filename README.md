@@ -125,7 +125,7 @@ This extension was Designed, Developed & Maintained by:
 Hi! I'm [Mamedul Islam](https://mamedul.github.io/), a passionate Web Developer who builds modern web applications, E-commerce, PWAs, and fast, static, dynamic, responsive websites. Specializing in WooCommerce, Wordpress, PHP, MySQL, and modern web development. Creating exceptional digital experiences since 2017.
 
 #### 📬 Connect With Me:
-[📱 WhatsApp](https://wa.me/8801847406830) • [💼 Fiverr](https://www.fiverr.com/mamedul) • [👔 LinkedIn](https://www.linkedin.com/in/mamedul/) • [💻 GitHub](https://github.com/mamedul) • [🐦 X (Twitter)](https://www.x.com/mamedul)
+[📱 WhatsApp](https://wa.me/8801847406830)&nbsp; • &nbsp;[💼 Fiverr](https://www.fiverr.com/mamedul)&nbsp; • &nbsp;[👔 LinkedIn](https://www.linkedin.com/in/mamedul/)&nbsp; • &nbsp;[💻 GitHub](https://github.com/mamedul)&nbsp; • &nbsp;[🐦 X (Twitter)](https://www.x.com/mamedul)
 
 I'm open for [freelance work](https://www.fiverr.com/mamedul), Woocommerce, E-commerce, Wordpress, PWA development, speed test apps, Firebase projects, websocket, PHP, MySQL and more. [Hire me](https://wa.me/8801847406830) to bring your ideas to life with clean, modern code!
 

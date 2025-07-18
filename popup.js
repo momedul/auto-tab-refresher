@@ -1,3 +1,37 @@
+
+
+    async function copyToClipboard(text) {
+    // Modern secure context
+    if (navigator.clipboard) {
+        try {
+            await navigator.clipboard.writeText(text);
+            return true;
+        } catch (err) {
+            //console.warn("navigator.clipboard failed, trying fallback...", err);
+        }
+    }
+
+    // Fallback
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed"; // Avoid scrolling
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+        const success = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        return success;
+    } catch (err) {
+        //console.error("Fallback copy failed", err);
+        document.body.removeChild(textarea);
+        return false;
+    }
+}
+
+// main
 document.addEventListener('DOMContentLoaded', () => {
     const intervalInput = document.getElementById('interval');
     const randomIntervalToggle = document.getElementById('randomIntervalToggle');
@@ -26,6 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeTabsList = document.getElementById('activeTabsList');
     const tabItems = document.getElementsByClassName('tab-item');
     const tabContents = document.getElementsByClassName('tab-content');
+    const toolItemsWrapper = document.getElementById('toolItems');
+    const toolContentsWrapper = document.getElementById('toolContents');
+    const toolsText = document.getElementById('toolsText');
+    const toolsBack = document.getElementById('toolsBack');
+    const toolItems = document.getElementsByClassName('tool-item');
+    const toolContents = document.getElementsByClassName('tool-content');
     const advancedFilters = document.getElementById('advancedFilters');
     const advancedFiltersWrapper = document.getElementById('advancedFiltersWrapper');
     const advancedFiltersToggle = document.getElementById('advancedFiltersToggle');
@@ -115,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(tabItems.length){
         const tabToggleFunc = (e) => {
             var t = e.target || e.currentTarget || e.srcElement,
-                t = t.nodeType ? t : t.parentNode,
+                t = t.nodeType === 1 ? t : t.parentNode,
                 id = t.id,
                 tabContent = null;
             for(var i = 0; i < tabContents.length; i++ ){
@@ -128,13 +168,60 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         for(var i = 0; i < tabItems.length; i++ ){
-            tabItems[i].addEventListener('click', tabToggleFunc);
+            tabItems[i].addEventListener('change', tabToggleFunc);
         }
     }
 
+    if(toolItems.length){
+
+        const toolBackFunc = (e) => {
+            const visibleToolContents = Array.from(toolContents).filter(el => !el.classList.contains('hidden'));
+            document.dispatchEvent(new CustomEvent('toolback', { detail: { 'id': visibleToolContents.length ? visibleToolContents[0].id : null } }));
+            toolItemsWrapper.classList.remove('hidden');
+            toolContentsWrapper.classList.add('hidden');
+            toolsText.textContent = 'Tools';
+            toolsBack.classList.add('hidden');
+        };
+
+        const toolToggleFunc = (e) => {
+            var t = e.target || e.currentTarget || e.srcElement,
+                t = t.nodeType === 1 ? t : t.parentNode,
+                t =  t.id ? t : t.parentNode,
+                t =  t.id ? t : t.parentNode,
+                id = t.id,
+                toolContent = null;
+            for(var i = 0; i < toolContents.length; i++ ){
+                var wrapper = (toolContents[i].dataset || {wrapper: null} ).wrapper;
+                var title = (toolContents[i].dataset || {title: null} ).title;
+                toolContents[i].classList.toggle('hidden', id!==wrapper);
+                if(id==wrapper){
+                    toolContent = toolContents[i];
+                    toolsText.textContent = title
+                }
+            }
+            if(toolContent){
+                toolItemsWrapper.classList.add('hidden');
+                toolContentsWrapper.classList.remove('hidden');
+                toolsBack.classList.remove('hidden');
+            }
+            document.dispatchEvent(new CustomEvent('toolclick', { detail: { 'id': id, 'target': t, 'toolContent': toolContent, } }));
+            document.dispatchEvent(new CustomEvent('toolclick_'.id, { detail: { 'id': id, 'target': t, 'toolContent': toolContent } }));
+        };
+
+        for(var i = 0; i < toolItems.length; i++ ){
+            toolItems[i].addEventListener('click', toolToggleFunc);
+        }
+        toolsBack.addEventListener('click', toolBackFunc);
+    }
 
     document.addEventListener('tabclick', (e) => {
-        console.log(e);
+        if(e.detail.id == "activesTab"){
+            toolItemsWrapper.classList.remove('hidden');
+            toolContentsWrapper.classList.add('hidden');
+            toolsBack.onclick = null;
+            toolsText.textContent = 'Tools';
+            toolsBack.classList.add('hidden');
+        }
     });
 
 
@@ -191,7 +278,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     currentTabUrlCopy.addEventListener('click', () => {
         copyToClipboard(currentTabUrlDisplay.textContent).then(success => {
-            currentTabUrlCopy.disabled = false;
+            currentTabUrlCopy.disabled = true;
             currentTabUrlCopy.innerHTML = success ? "&#10004" : "&#9940;";
             setTimeout(()=>{
                 currentTabUrlCopy.innerHTML = "&#128196;";
@@ -543,37 +630,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${days}d`;
     }
 
-    async function copyToClipboard(text) {
-        // Modern secure context
-        if (navigator.clipboard && window.isSecureContext) {
-            try {
-                await navigator.clipboard.writeText(text);
-                return true;
-            } catch (err) {
-                //console.warn("navigator.clipboard failed, trying fallback...", err);
-            }
-        }
-
-        // Fallback
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.style.position = "fixed"; // Avoid scrolling
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        try {
-            const success = document.execCommand("copy");
-            document.body.removeChild(textarea);
-            return success;
-        } catch (err) {
-            //console.error("Fallback copy failed", err);
-            document.body.removeChild(textarea);
-            return false;
-        }
-    }
-
     // Listen for updates from background script for countdown and list re-render
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === 'updateCountdown' && request.tabId === currentActiveTabId) {
@@ -599,4 +655,106 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the popup when it opens
     initializePopup();
+});
+
+
+// adblocker
+document.addEventListener('DOMContentLoaded', () => {
+    const adblockToggle = document.getElementById('adblockToggle');
+    const statusMessage = document.getElementById('statusMessage');
+
+    // Load the current state from storage and set the checkbox
+    chrome.storage.local.get(['isBlockingActive'], (result) => {
+        const isBlockingActive = result.isBlockingActive !== false; // Default to true if not set
+        adblockToggle.checked = isBlockingActive;
+        updateStatusMessage(isBlockingActive);
+    });
+
+    // Listen for changes on the checkbox
+    adblockToggle.addEventListener('change', () => {
+        const isChecked = adblockToggle.checked;
+        chrome.storage.local.set({ isBlockingActive: isChecked }, () => {
+            // Send a message to the background script to update its state
+            chrome.runtime.sendMessage({ action: 'toggleAdblock', isBlockingActive: isChecked });
+            updateStatusMessage(isChecked);
+        });
+    });
+
+    function updateStatusMessage(isActive) {
+        if (isActive) {
+            statusMessage.textContent = "Adblocker is ON.";
+            statusMessage.style.color = "#28a745"; // Green
+        } else {
+            statusMessage.textContent = "Adblocker is OFF.";
+            statusMessage.style.color = "#dc3545"; // Red
+        }
+    }
+});
+
+
+
+// email extractor
+document.addEventListener('DOMContentLoaded', function() {
+  const extractEmailsBtn = document.getElementById('extractEmailsBtn');
+  const emailListDiv = document.getElementById('emailList');
+  const copyEmails = document.getElementById('copyEmails');
+
+  copyEmails.addEventListener('click', async () => {
+    console.log(emailListDiv.textContent);
+    copyToClipboard(emailListDiv.textContent).then(success => {
+        copyEmails.disabled = true;
+        copyEmails.innerHTML = success ? "&#10004 Copied" : "&#9940; Failed";
+        setTimeout(()=>{
+            copyEmails.innerHTML = "&#128196; Copy";
+            copyEmails.disabled = false;
+        }, 3000);
+    });
+  });
+
+  extractEmailsBtn.addEventListener('click', async () => {
+    emailListDiv.innerHTML = '<p class="empty-message">Extracting emails...</p>';
+
+    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (tab) {
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['email-extract-content.js']
+        });
+        if (results && results[0] && results[0].result) {
+            const emails = Array.from(results[0].result).filter((value, index, self) => self.indexOf(value) === index);
+            displayEmails(emails);
+        } else {
+          displayEmails([]);
+        }
+      } catch (error) {
+        console.error('Failed to execute script:', error);
+        emailListDiv.innerHTML = '<p class="empty-message" style="color: red;">Error extracting emails.</p>';
+        copyEmails.classList.add('hidden');
+      }
+    } else {
+      emailListDiv.innerHTML = '<p class="empty-message">No active tab found.</p>';
+      copyEmails.classList.add('hidden');
+    }
+  });
+
+  function displayEmails(emails) {
+    emailListDiv.innerHTML = ''; // Clear previous content
+    if (emails && emails.length > 0) {
+      const uniqueEmails = [...new Set(emails)]; // Get unique emails
+      uniqueEmails.forEach(email => {
+        /*
+        const p = document.createElement('p');
+        p.textContent = email;
+        emailListDiv.appendChild(p);
+        */
+        emailListDiv.innerHTML += email + "\n";
+      });
+      copyEmails.classList.remove('hidden');
+    } else {
+      emailListDiv.innerHTML = '<p class="empty-message">No emails found on this page.</p>';
+      copyEmails.classList.add('hidden');
+    }
+  }
 });

@@ -497,3 +497,562 @@ chrome.runtime.onStartup.addListener(() => {
         }
     });
 });
+
+
+
+// add blocker
+(function(){
+
+// background.js
+
+// Define the URL for the adblock filter list
+const FILTER_LIST_URL = "https://ublockorigin.github.io/uAssets/filters/filters.min.txt";
+const FILTER_REFRESH_INTERVAL_MINUTES = 24 * 60; // Refresh interval in minutes (24 hours)
+const MAX_DNR_RULES = chrome.declarativeNetRequest.MAX_NUMBER_OF_DYNAMIC_AND_SESSION_RULES || 5000; // Max rules Chrome allows
+
+// Global array to store declarativeNetRequest rule objects
+let adblockRules = [];
+let isBlockingActive = true; // Default state: adblocker is active
+
+// Hardcoded rules for common ad platforms (Google, Meta, YouTube)
+// These rules are given a higher priority (2) to ensure they are applied first.
+const HARDCODED_AD_RULES = [
+  // Google Ads
+  {
+    id: 900001,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://adservice.google.com/*",
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900002,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://pagead2.googlesyndication.com/*",
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900003,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://googleadservices.com/*",
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900004,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://tpc.googlesyndication.com/*",
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900005,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://googlesyndication.com/*", // Broader match
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+    {
+    id: 900006,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://ad.doubleclick.net/*", // DoubleClick (Google's ad serving platform)
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900007,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://static.doubleclick.net/*",
+      resourceTypes: ["script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900008,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://r.youtube.com/ads/*", // YouTube ads
+      resourceTypes: ["media", "other"]
+    }
+  },
+
+  // Meta (Facebook/Instagram) Ads
+  // Meta (Facebook/Instagram) Ads
+  {
+    id: 900009,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://connect.facebook.net/*", // Facebook Pixel/SDK related to ads
+      resourceTypes: ["script", "other"]
+    }
+  },
+  {
+    id: 9000010,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://www.facebook.com/ads/*", // Direct Facebook ad content
+      resourceTypes: ["main_frame", "sub_frame", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900011,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://pixel.facebook.com/*", // Facebook tracking pixel
+      resourceTypes: ["image", "script", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900012,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://static.xx.fbcdn.net/rsrc.php/*/r/FB_ADS_*", // Facebook ad resources
+      resourceTypes: ["image", "script", "media", "other"]
+    }
+  },
+
+  // Amazon Ads
+  {
+    id: 900013,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://fls-na.amazon.com/*", // Amazon advertising/tracking
+      resourceTypes: ["script", "image", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900014,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://m.media-amazon.com/images/I/*_SL*.*", // Amazon sponsored product images (often have specific URL patterns)
+      resourceTypes: ["image"]
+    }
+  },
+  {
+    id: 900015,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://ir-na.amazon-adsystem.com/*", // Amazon ad system
+      resourceTypes: ["script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+
+  // Other common ad/tracking domains (examples, a real list is much longer)
+  {
+    id: 900016,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://ad.yieldmanager.com/*", // Generic ad network example
+      resourceTypes: ["script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900017,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://quantserve.com/*", // Analytics/tracking, often related to ads
+      resourceTypes: ["script", "image", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900018,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://scorecardresearch.com/*", // Market research, often linked to ad measurement
+      resourceTypes: ["script", "image", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900019,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://securepubads.g.doubleclick.net/*", // Google Publisher Tag (GPT) for DFP/Ad Manager
+      resourceTypes: ["script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+
+  // YouTube Ads
+  // YouTube Ads (Enhanced Blocking)
+  {
+    id: 900020,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://*.youtube.com/api/ads/*",
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900021,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://*.youtube.com/pagead/*",
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900022,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      urlFilter: "*://*.youtube.com/ptracking/*", // YouTube ad tracking
+      resourceTypes: ["main_frame", "sub_frame", "script", "image", "media", "xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900023,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      // More specific pattern for video ads from googlevideo.com
+      urlFilter: "*://*.googlevideo.com/videoplayback?*adformat=*,*adtag=*,*ctier=*,*ei=*,*dur=*,*plid=*",
+      resourceTypes: ["media"]
+    }
+  },
+  {
+    id: 900024,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      // Blocking common YouTube ad segments in video manifest/playlist requests
+      urlFilter: "*://*.youtube.com/api/timedtext?*v=*,*ad=*",
+      resourceTypes: ["xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900025,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      // Blocking common YouTube ad segments in video manifest/playlist requests
+      urlFilter: "*://*.youtube.com/get_video_info?*ad=*",
+      resourceTypes: ["xmlhttprequest", "other"]
+    }
+  },
+  {
+    id: 900026,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      // Blocking YouTube ad-related scripts
+      urlFilter: "*://*.youtube.com/yts/jsbin/player-*.js?*ads*",
+      resourceTypes: ["script"]
+    }
+  },
+  {
+    id: 900027,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      // Blocking YouTube ad-related manifest requests
+      urlFilter: "*://*.youtube.com/s/player/*.js",
+      resourceTypes: ["script"],
+      // Exclude if it's not an ad-related script
+      excludedInitiatorDomains: ["youtube.com"], // This is a placeholder, actual exclusion logic might be complex
+      urlFilter: "*://*.youtube.com/s/player/*.js?*ad_module=1*" // More specific to ad modules
+    }
+  },
+  {
+    id: 900028,
+    priority: 2,
+    action: { type: "block" },
+    condition: {
+      // Blocking YouTube ad-related manifest requests
+      urlFilter: "*://*.youtube.com/api/stats/ads*",
+      resourceTypes: ["xmlhttprequest", "ping", "other"]
+    }
+  }
+];
+
+
+/**
+ * Converts an Adblock Plus style filter rule into a declarativeNetRequest urlFilter pattern.
+ * This is a simplified conversion and does not cover all ABP syntax or regex capabilities.
+ * It focuses on common blocking patterns for URL matching.
+ *
+ * @param {string} filter The ABP filter rule string.
+ * @returns {string|null} A urlFilter string if successful, otherwise null.
+ */
+function convertFilterToUrlFilter(filter) {
+  let urlFilter = filter;
+
+  // Handle ||domain^ (matches domain and its subdomains)
+  // Example: ||example.com^  ->  *://*.example.com/*
+  if (urlFilter.startsWith('||')) {
+    urlFilter = urlFilter.substring(2); // Remove '||'
+    // Remove trailing '^' if present, as it's not directly supported in urlFilter glob
+    if (urlFilter.endsWith('^')) {
+      urlFilter = urlFilter.slice(0, -1);
+    }
+    // Convert to glob pattern for domain and subdomains
+    urlFilter = `*://*.${urlFilter}/*`;
+  }
+  // Handle |path (matches beginning of URL)
+  // Example: |/ads/ -> */ads/*
+  else if (urlFilter.startsWith('|')) {
+    urlFilter = urlFilter.substring(1); // Remove '|'
+    // Convert to glob pattern for path. This is a simplification.
+    // A strict | means "start of URL", which is often covered by the full URL match.
+    // For paths, using * at the start and end is a common compromise for urlFilter.
+    urlFilter = `*${urlFilter}*`;
+  }
+  // Handle ^ (separator character) - simplified to wildcard for urlFilter
+  // In ABP, ^ matches anything but a letter, digit, or underscore, or the end of the address.
+  // For urlFilter, treating it as a wildcard is a compromise for broader matching.
+  urlFilter = urlFilter.replace(/\^/g, '*');
+
+  // Handle * (wildcard) - already compatible with urlFilter glob, no change needed.
+
+  // No aggressive stripping of characters. urlFilter uses glob, not regex,
+  // so characters like '.', '-', '_' are treated literally unless they are glob wildcards.
+
+  // Basic validation: ensure the filter is not empty or just whitespace after conversion
+  if (urlFilter.trim().length === 0) {
+    return null;
+  }
+
+  return urlFilter;
+}
+
+/**
+ * Processes the raw filter list text into declarativeNetRequest rule objects.
+ * This function attempts to translate ABP syntax to DNR rules, but is simplified.
+ *
+ * @param {string} text The raw filter list content.
+ * @param {number} startId The starting ID for the generated rules.
+ * @param {number} maxRulesToGenerate The maximum number of rules to generate from this text.
+ * @returns {Array<chrome.declarativeNetRequest.Rule>} An array of DNR rule objects.
+ */
+function processFilterText(text, startId, maxRulesToGenerate) {
+  const newRules = [];
+  const lines = text.split('\n');
+  let ruleIdCounter = startId;
+
+  for (const line of lines) {
+    // Stop if we've reached the maximum number of rules for this batch
+    if (newRules.length >= maxRulesToGenerate) {
+      //console.warn(`Reached maximum rules (${maxRulesToGenerate}) for fetched filter list. Truncating.`);
+      break;
+    }
+
+    const trimmedLine = line.trim();
+
+    // Skip empty lines, comments, and specific complex rules not easily translated.
+    // Lines with '!' are comments. Lines starting with '[' are often headers.
+    // Lines with '$' often contain ABP options (e.g., $script, $domain, $third-party)
+    // or element hiding rules ('#') which are not directly supported by simple
+    // declarativeNetRequest urlFilter blocking without content scripts or more complex rule logic.
+    if (!trimmedLine || trimmedLine.startsWith('!') || trimmedLine.startsWith('[') ||
+        trimmedLine.includes('#') || trimmedLine.includes('$')) {
+      continue;
+    }
+
+    // Handle whitelist rules (@@) - these will not be added as block rules.
+    // For declarativeNetRequest, whitelisting is often handled by not creating a block rule
+    // or by having allow rules with higher priority (which is not implemented in this simplified version).
+    if (trimmedLine.startsWith('@@')) {
+      continue;
+    }
+
+    // Convert blocking rules
+    const urlFilter = convertFilterToUrlFilter(trimmedLine);
+    if (urlFilter) {
+      // Basic validation to prevent invalid urlFilters
+      if (urlFilter.length > 0 && !urlFilter.includes(' ')) { // Simple check for empty or spaces
+        newRules.push({
+          id: ruleIdCounter++,
+          priority: 1, // Fetched rules have lower priority than hardcoded
+          action: { type: "block" },
+          condition: {
+            urlFilter: urlFilter,
+            // Common resource types to block. This can be expanded based on filter analysis.
+            resourceTypes: [
+              "main_frame", "sub_frame", "stylesheet", "script", "image",
+              "font", "media", "websocket", "xmlhttprequest", "ping",
+              "csp_report", "other"
+            ]
+          }
+        });
+        // Uncomment the line below for debugging to see generated rules
+        // //console.log(`ABP Filter: "${trimmedLine}" -> URL Filter: "${urlFilter}"`);
+      } else {
+        //console.warn(`Skipping invalid URL filter generated from ABP rule: "${trimmedLine}" -> "${urlFilter}"`);
+      }
+    }
+  }
+  return newRules;
+}
+
+/**
+ * Fetches the adblock filter list, parses it, and saves it to local storage.
+ * It also prepares the declarativeNetRequest rules and updates them.
+ */
+async function fetchAndParseFilterList() {
+  //console.log("Attempting to fetch adblock filter list...");
+  try {
+    const response = await fetch(FILTER_LIST_URL);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const text = await response.text();
+    //console.log("Filter list fetched successfully. Saving to storage and processing...");
+
+    // Save the fetched text and timestamp to local storage
+    await chrome.storage.local.set({
+      adblockFilterList: text,
+      lastFetchedTimestamp: Date.now()
+    });
+
+    // Calculate how many fetched rules we can add after hardcoded rules
+    const remainingRuleCapacity = MAX_DNR_RULES - HARDCODED_AD_RULES.length;
+    if (remainingRuleCapacity < 0) {
+        //console.error("Hardcoded rules exceed MAX_DNR_RULES. No space for fetched rules.");
+        adblockRules = HARDCODED_AD_RULES; // Only use hardcoded rules
+    } else {
+        // Process the text into declarativeNetRequest rules, starting IDs after hardcoded rules
+        // and limiting to remaining capacity.
+        const fetchedRules = processFilterText(text, HARDCODED_AD_RULES.length + 1, remainingRuleCapacity);
+        adblockRules = [...HARDCODED_AD_RULES, ...fetchedRules];
+    }
+
+    //console.log(`Total prepared declarativeNetRequest rules: ${adblockRules.length} (Hardcoded: ${HARDCODED_AD_RULES.length}, Fetched: ${adblockRules.length - HARDCODED_AD_RULES.length}).`);
+
+    // Update the declarativeNetRequest rules in Chrome
+    await updateDeclarativeNetRequestRules();
+
+  } catch (error) {
+    //console.error("Failed to fetch or parse filter list:", error);
+    // Optionally, implement retry logic or notify user if critical
+  }
+}
+
+/**
+ * Updates the declarativeNetRequest rules in Chrome based on the current
+ * `isBlockingActive` state and the `adblockRules` array.
+ */
+async function updateDeclarativeNetRequestRules() {
+  try {
+    // Get existing dynamic rules to remove them first
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const existingRuleIds = existingRules.map(rule => rule.id);
+
+    // Remove all existing dynamic rules to prevent duplicates and ensure a clean state
+    if (existingRuleIds.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: existingRuleIds
+      });
+      //console.log(`Removed ${existingRuleIds.length} existing dynamic rules.`);
+    }
+
+    // Add new rules if blocking is active and there are rules to add
+    if (isBlockingActive && adblockRules.length > 0) {
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        addRules: adblockRules
+      });
+      //console.log(`Added ${adblockRules.length} dynamic rules.`);
+    } else {
+      //console.log("Adblocker is inactive or no rules to add, no rules were added.");
+    }
+  } catch (error) {
+    //console.error("Error updating declarativeNetRequest rules:", error);
+  }
+}
+
+// Listen for messages from the popup script to toggle adblocker state
+chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+    if (request.action === 'toggleAdblock') {
+        isBlockingActive = request.isBlockingActive;
+        //console.log(`Adblocker is now ${isBlockingActive ? 'active' : 'inactive'}.`);
+        await updateDeclarativeNetRequestRules(); // Update rules immediately when state changes
+    }
+});
+
+/**
+ * Initializes the adblocker: loads state from storage, attempts to use cached
+ * filter list, or fetches a new one, and sets up the periodic refresh alarm.
+ */
+async function initializeAdblocker() {
+    // Load blocking active state and cached filter list from storage
+    const storageResult = await chrome.storage.local.get(['isBlockingActive', 'adblockFilterList', 'lastFetchedTimestamp']);
+    isBlockingActive = storageResult.isBlockingActive !== false; // Default to true if not set
+    //console.log(`Adblocker initialized to ${isBlockingActive ? 'active' : 'inactive'}.`);
+
+    const storedFilterList = storageResult.adblockFilterList;
+    const lastFetchedTimestamp = storageResult.lastFetchedTimestamp;
+    const twentyFourHoursInMs = FILTER_REFRESH_INTERVAL_MINUTES * 60 * 1000;
+
+    // Check if a stored filter list exists and is relatively fresh
+    if (storedFilterList && lastFetchedTimestamp && (Date.now() - lastFetchedTimestamp < twentyFourHoursInMs)) {
+        //console.log("Using cached filter list.");
+        // Calculate how many fetched rules we can add after hardcoded rules
+        const remainingRuleCapacity = MAX_DNR_RULES - HARDCODED_AD_RULES.length;
+        if (remainingRuleCapacity < 0) {
+            //console.error("Hardcoded rules exceed MAX_DNR_RULES. No space for fetched rules.");
+            adblockRules = HARDCODED_AD_RULES; // Only use hardcoded rules
+        } else {
+            const fetchedRules = processFilterText(storedFilterList, HARDCODED_AD_RULES.length + 1, remainingRuleCapacity);
+            adblockRules = [...HARDCODED_AD_RULES, ...fetchedRules];
+        }
+        //console.log(`Total parsed declarativeNetRequest rules from cache: ${adblockRules.length} (Hardcoded: ${HARDCODED_AD_RULES.length}, Fetched: ${adblockRules.length - HARDCODED_AD_RULES.length}).`);
+    } else {
+        //console.log("Cached filter list not found or expired. Fetching new list.");
+        // fetchAndParseFilterList will also call updateDeclarativeNetRequestRules
+        await fetchAndParseFilterList();
+    }
+
+    // Ensure rules are set based on initial state after loading/fetching
+    await updateDeclarativeNetRequestRules();
+
+    // Set up an alarm to periodically refresh the filter list
+    // Clear any existing alarm first to prevent duplicates
+    chrome.alarms.clear('refreshFilterList', (wasCleared) => {
+        if (wasCleared) {
+            //console.log("Cleared existing 'refreshFilterList' alarm.");
+        }
+        chrome.alarms.create('refreshFilterList', {
+            periodInMinutes: FILTER_REFRESH_INTERVAL_MINUTES
+        });
+        //console.log(`Scheduled filter list refresh every ${FILTER_REFRESH_INTERVAL_MINUTES} minutes.`);
+    });
+}
+
+// Listen for the alarm to trigger a filter list refresh
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'refreshFilterList') {
+        //console.log("Alarm triggered: Refreshing filter list.");
+        fetchAndParseFilterList(); // This will also update rules
+    }
+});
+
+// Initialize the adblocker when the service worker starts
+initializeAdblocker();
+
+
+})();
